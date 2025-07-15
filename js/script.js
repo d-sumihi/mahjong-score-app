@@ -8,6 +8,9 @@ const scoreElement = document.getElementById("score");
 const nextButton = document.getElementById("nextButton");
 const muteToggle = document.getElementById("muteToggle");
 const nonManganCheckbox = document.getElementById("nonManganMode");
+const startButton = document.getElementById("startButton");
+const startContainer = document.getElementById("startContainer");
+const quizContainer = document.getElementById("quizContainer");
 
 let score = 0;
 let correctAnswer = "";
@@ -23,6 +26,12 @@ muteToggle.addEventListener("click", () => {
   correctSound.muted = isMuted;
   wrongSound.muted = isMuted;
   muteToggle.textContent = isMuted ? "🔇 ミュート解除" : "🔊 ミュート";
+});
+
+startButton.addEventListener("click", () => {
+  startContainer.style.display = "none";
+  quizContainer.style.display = "block";
+  displayQuestion();
 });
 
 function getValidKeys(scoreTable, mode, method, nonManganOnly) {
@@ -123,4 +132,3 @@ async function displayQuestion() {
 }
 
 nextButton.addEventListener("click", displayQuestion);
-window.addEventListener("load", displayQuestion);

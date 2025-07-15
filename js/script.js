@@ -1,6 +1,18 @@
 const correctSound = new Audio("sound/correct.mp3");
 const wrongSound = new Audio("sound/wrong.mp3");
 
+const muteToggle = document.getElementById("muteToggle");
+let isMuted = false;
+
+muteToggle.addEventListener("click", () => {
+  isMuted = !isMuted;
+
+  correctSound.muted = isMuted;
+  wrongSound.muted = isMuted;
+
+  muteToggle.textContent = isMuted ? "🔇 ミュート解除" : "🔊 ミュート";
+});
+
 let scoreTable = {};
 
 async function loadScoreTable() {

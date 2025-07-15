@@ -72,3 +72,20 @@ body {
     margin-bottom: 10px;
     color: #333;
   }
+
+  #muteToggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    background-color: #eee;
+    cursor: pointer;
+  }
+  
+  #muteToggle:hover {
+    background-color: #ddd;
+  }

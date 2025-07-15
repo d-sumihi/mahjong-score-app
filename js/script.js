@@ -1,252 +1,126 @@
 const correctSound = new Audio("sound/correct.mp3");
 const wrongSound = new Audio("sound/wrong.mp3");
 
+const questionElement = document.getElementById("question");
+const choicesElement = document.getElementById("choices");
+const resultElement = document.getElementById("result");
+const scoreElement = document.getElementById("score");
+const nextButton = document.getElementById("nextButton");
 const muteToggle = document.getElementById("muteToggle");
+const nonManganCheckbox = document.getElementById("nonManganMode");
+
+let score = 0;
+let correctAnswer = "";
 let isMuted = false;
+let currentMode = "child";
+let currentMethod = "ron";
+
+correctSound.volume = 0.5;
+wrongSound.volume = 0.5;
 
 muteToggle.addEventListener("click", () => {
   isMuted = !isMuted;
-
   correctSound.muted = isMuted;
   wrongSound.muted = isMuted;
-
   muteToggle.textContent = isMuted ? "🔇 ミュート解除" : "🔊 ミュート";
 });
 
-let scoreTable = {};
+function getValidKeys(scoreTable, mode, method, nonManganOnly) {
+  const keys = Object.keys(scoreTable[mode][method]);
+  if (!nonManganOnly) return keys;
 
-async function loadScoreTable() {
-  try {
-    const response = await fetch("data/scoreTable.json");
-    scoreTable = await response.json();
-    updateScoreDisplay();
-    displayQuestion();
-  } catch (e) {
-    console.error("点数データの読み込みに失敗しました:", e);
-  }
-}
-
-const questionEl = document.getElementById("question");
-const choicesEl = document.getElementById("choices");
-const resultEl = document.getElementById("result");
-const nextButton = document.getElementById("nextButton");
-const scoreEl = document.getElementById("score");
-
-let currentAnswer = null;
-let currentScore = 0;
-
-function updateScoreDisplay() {
-  scoreEl.textContent = `スコア：${currentScore}`;
-}
-
-function calculateFixedPoint(han, role, winType, fu = null) {
-  const h = parseInt(han);
-  const f = parseInt(fu);
-
-  if (f === 20 && h === 4) return null;
-
-  if (h >= 13) {
-    if (winType === "tsumo") {
-      if (role === "parent") return "16000 ALL";
-      else return "8000 / 16000";
-    } else {
-      if (role === "parent") return "48000";
-      else return "32000";
-    }
-  }
-
-  if (h >= 11) {
-    if (winType === "tsumo") {
-      if (role === "parent") return "12000 ALL";
-      else return "6000 / 12000";
-    } else {
-      if (role === "parent") return "36000";
-      else return "24000";
-    }
-  }
-
-  if (h >= 8) {
-    if (winType === "tsumo") {
-      if (role === "parent") return "8000 ALL";
-      else return "4000 / 8000";
-    } else {
-      if (role === "parent") return "24000";
-      else return "16000";
-    }
-  }
-
-  if (h >= 6) {
-    if (winType === "tsumo") {
-      if (role === "parent") return "6000 ALL";
-      else return "3000 / 6000";
-    } else {
-      if (role === "parent") return "18000";
-      else return "12000";
-    }
-  }
-
-  if (h >= 4) {
-    if (winType === "tsumo") {
-      if (role === "parent") return "4000 ALL";
-      else return "2000 / 4000";
-    } else {
-      if (role === "parent") return "12000";
-      else return "8000";
-    }
-  }
-
-  return null;
-}
-
-function formatAnswer(val, role, winType) {
-  if (val === undefined || val === null) return null;
-
-  if (role === "child" && winType === "tsumo") {
-    if (val.child && val.parent) return `${val.child} / ${val.parent}`;
-    return null;
-  } else if (role === "parent" && winType === "tsumo") {
-    if (typeof val === "number" || typeof val === "string") return `${val} ALL`;
-    return null;
-  } else {
-    if (typeof val === "number" || typeof val === "string") return `${val}`;
-    return null;
-  }
-}
-
-function getRandomEntry() {
-  const roles = ["parent", "child"];
-  const role = roles[Math.floor(Math.random() * roles.length)];
-  const winTypes = ["ron", "tsumo"];
-  const winType = winTypes[Math.floor(Math.random() * winTypes.length)];
-  const fuList = ["20", "30", "40", "50", "60"];
-  const hanList = Array.from({ length: 13 }, (_, i) => (i + 1).toString());
-
-  const fu = fuList[Math.floor(Math.random() * fuList.length)];
-  const han = hanList[Math.floor(Math.random() * hanList.length)];
-
-  const fixed = calculateFixedPoint(han, role, winType, fu);
-  if (fixed !== null) {
-    return { fu, han, answer: fixed, role, winType };
-  }
-
-  const key = `${fu}-${han}`;
-  const data = scoreTable?.[role]?.[winType]?.[key];
-  if (!data) return getRandomEntry();
-
-  const answer = formatAnswer(data, role, winType);
-  if (!answer) return getRandomEntry();
-
-  return { fu, han, answer, role, winType };
-}
-
-function generateChoices(fu, han, role, correctAnswer, winType) {
-  const fuList = ["20", "30", "40", "50", "60"];
-  const hanInt = parseInt(han);
-  const candidateSet = new Set();
-
-  for (const otherFu of fuList) {
-    if (otherFu !== fu) {
-      const key = `${otherFu}-${han}`;
-      const val = scoreTable?.[role]?.[winType]?.[key];
-      const formatted = formatAnswer(val, role, winType);
-      if (formatted) candidateSet.add(formatted);
-    }
-  }
-
-  for (let delta of [-1, 1]) {
-    const h = hanInt + delta;
-    if (h >= 1 && h <= 13) {
-      const fixed = calculateFixedPoint(h.toString(), role, winType, fu);
-      if (fixed) candidateSet.add(fixed);
-      else {
-        const key = `${fu}-${h}`;
-        const val = scoreTable?.[role]?.[winType]?.[key];
-        const formatted = formatAnswer(val, role, winType);
-        if (formatted) candidateSet.add(formatted);
-      }
-    }
-  }
-
-  const fixed = calculateFixedPoint(han, role, winType, fu);
-  if (fixed && fixed !== correctAnswer) candidateSet.add(fixed);
-
-  const candidates = Array.from(candidateSet).filter(v => v !== correctAnswer);
-
-  if (candidates.length < 3) {
-    const backupSet = new Set();
-    for (let h = 1; h <= 13; h++) {
-      for (const f of fuList) {
-        const fixed = calculateFixedPoint(h.toString(), role, winType, f);
-        if (fixed) backupSet.add(fixed);
-        else {
-          const key = `${f}-${h}`;
-          const val = scoreTable?.[role]?.[winType]?.[key];
-          const formatted = formatAnswer(val, role, winType);
-          if (formatted) backupSet.add(formatted);
-        }
-      }
-    }
-
-    const backupList = Array.from(backupSet).filter(
-      v => v !== correctAnswer && !candidates.includes(v)
-    );
-
-    while (candidates.length < 3 && backupList.length > 0) {
-      const val = backupList.splice(Math.floor(Math.random() * backupList.length), 1)[0];
-      candidates.push(val);
-    }
-  }
-
-  const selected = candidates.sort(() => Math.random() - 0.5).slice(0, 3);
-  return [...selected, correctAnswer].sort(() => Math.random() - 0.5);
-}
-
-function displayQuestion() {
-  resultEl.textContent = "";
-  nextButton.style.display = "none";
-
-  const { fu, han, answer, role, winType } = getRandomEntry();
-  currentAnswer = answer;
-
-  let roleJP = role === "parent" ? "親" : "子";
-  let winJP = winType === "tsumo" ? "ツモあがり" : "ロンあがり";
-
-  questionEl.innerHTML = `
-    <p><strong>符：</strong>${fu}符</p>
-    <p><strong>翻数：</strong>${han}翻</p>
-    <p><strong>状況：</strong>${roleJP}・${winJP}</p>
-    <p>点数は？</p>
-  `;
-
-  const choices = generateChoices(fu, han, role, answer, winType);
-  choicesEl.innerHTML = "";
-
-  choices.forEach(choice => {
-    const btn = document.createElement("button");
-    btn.textContent = choice;
-    btn.onclick = () => {
-      if (nextButton.style.display === "inline-block") return;
-      document.querySelectorAll("#choices button").forEach(b => b.disabled = true);
-
-      if (choice === currentAnswer) {
-        correctSound.currentTime = 0;
-        correctSound.play();
-        resultEl.textContent = "✅ 正解！ +10点";
-        resultEl.style.color = "green";
-        currentScore += 10;
-        updateScoreDisplay();
-      } else {
-        wrongSound.currentTime = 0;
-        wrongSound.play();
-        resultEl.textContent = `❌ 不正解！正解は ${currentAnswer}`;
-        resultEl.style.color = "red";
-      }
-
-      nextButton.style.display = "inline-block";
-    };
-    choicesEl.appendChild(btn);
+  return keys.filter(key => {
+    const [fu, han] = key.split("-").map(Number);
+    if (fu === 20 && han <= 4) return true;
+    if ((fu === 30 || fu === 40 || fu === 50) && han <= 3) return true;
+    return false;
   });
 }
 
-nextButton.onclick = displayQuestion;
-loadScoreTable();  // 初期化時に JSON を読み込む
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+async function displayQuestion() {
+  const response = await fetch("data/scoreTable.json");
+  const scoreTable = await response.json();
+  currentMode = Math.random() < 0.5 ? "child" : "parent";
+  currentMethod = Math.random() < 0.5 ? "ron" : "tsumo";
+  const nonManganOnly = nonManganCheckbox.checked;
+
+  const validKeys = getValidKeys(scoreTable, currentMode, currentMethod, nonManganOnly);
+  const randomKey = validKeys[Math.floor(Math.random() * validKeys.length)];
+  const [fu, han] = randomKey.split("-").map(Number);
+  const answer = scoreTable[currentMode][currentMethod][randomKey];
+
+  questionElement.textContent = `${currentMode === "parent" ? "親" : "子"}・${currentMethod === "ron" ? "ロン" : "ツモ"}：${fu}符${han}翻`;
+
+  let displayAnswer = "";
+  if (currentMethod === "tsumo") {
+    if (currentMode === "parent") {
+      displayAnswer = `${answer}ALL`;
+    } else {
+      displayAnswer = `${answer.child}/${answer.parent}`;
+    }
+  } else {
+    displayAnswer = answer.toString();
+  }
+
+  correctAnswer = displayAnswer;
+
+  const allKeys = getValidKeys(scoreTable, currentMode, currentMethod, false);
+  const otherKeys = allKeys.filter(k => k !== randomKey);
+  shuffle(otherKeys);
+
+  const choices = [displayAnswer];
+  while (choices.length < 4 && otherKeys.length > 0) {
+    const k = otherKeys.pop();
+    const v = scoreTable[currentMode][currentMethod][k];
+    let choice = "";
+
+    if (currentMethod === "tsumo") {
+      if (currentMode === "parent") {
+        choice = `${v}ALL`;
+      } else {
+        choice = `${v.child}/${v.parent}`;
+      }
+    } else {
+      choice = v.toString();
+    }
+
+    if (!choices.includes(choice)) {
+      choices.push(choice);
+    }
+  }
+
+  shuffle(choices);
+  choicesElement.innerHTML = "";
+  choices.forEach(c => {
+    const btn = document.createElement("button");
+    btn.textContent = c;
+    btn.onclick = () => {
+      if (c === correctAnswer) {
+        resultElement.textContent = "正解！";
+        if (!isMuted) correctSound.play();
+        score += 10;
+      } else {
+        resultElement.textContent = `不正解… 正解は ${correctAnswer}`;
+        if (!isMuted) wrongSound.play();
+      }
+      scoreElement.textContent = `スコア: ${score}`;
+      nextButton.disabled = false;
+      Array.from(choicesElement.children).forEach(b => b.disabled = true);
+    };
+    choicesElement.appendChild(btn);
+  });
+
+  nextButton.disabled = true;
+  resultElement.textContent = "";
+}
+
+nextButton.addEventListener("click", displayQuestion);
+window.addEventListener("load", displayQuestion);

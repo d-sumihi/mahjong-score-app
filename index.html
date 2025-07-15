@@ -1,21 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>麻雀 点数クイズ</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta charset="UTF-8">
+  <title>麻雀点数クイズ（マンガン未満モード対応）</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>麻雀 点数計算 千本ノック！！</h1>
-        <div id="score">スコア：0</div>
-        <div id="question"></div>
-        <div id="choices"></div>
-        <div id="result"></div>
-        <button id="nextButton" style="display: none;">次の問題</button>
-        <button id="muteToggle">🔊 ミュート</button>
-    </div>      
+  <h1>麻雀点数クイズ</h1>
+  <label><input type="checkbox" id="nonManganMode"> マンガン未満モード</label>
+  <div id="question"></div>
+  <div id="choices" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;"></div>
+  <div id="result"></div>
+  <div id="score">スコア: 0</div>
+  <button id="nextButton">次の問題</button>
+  <button id="muteToggle" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">🔊 ミュート</button>
+
   <script src="js/script.js"></script>
 </body>
 </html>

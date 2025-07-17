@@ -1,18 +1,15 @@
 let score = 0;
-let quizData = {};
-let currentMode = false; // false: 通常モード, true: マンガン未満モード
-let currentQuestion = null;
+let currentAnswer = "";
+let currentMode = "normal";
+let scoreData = {};
 
-// JSON読み込み
-fetch("data/scoreTable.json")
-  .then(response => response.json())
-  .then(data => {
-    quizData = data;
-  });
+async function loadScoreData() {
+  const response = await fetch("data/scoreTable.json");
+  scoreData = await response.json();
+}
 
-// スタート処理
-function startGame(manganLessMode) {
-  currentMode = manganLessMode;
+function startQuiz(mode) {
+  currentMode = mode;
   document.getElementById("start-screen").style.display = "none";
   document.getElementById("quiz-container").style.display = "flex";
   score = 0;
@@ -20,25 +17,25 @@ function startGame(manganLessMode) {
   nextQuestion();
 }
 
-// スコア更新
 function updateScore() {
   document.getElementById("score").textContent = `スコア: ${score}`;
 }
 
-// 問題作成
 function nextQuestion() {
   document.getElementById("result").textContent = "";
   document.getElementById("next-button").style.display = "none";
 
-  const dealer = Math.random() < 0.5 ? "parent" : "child";
-  const winType = Math.random() < 0.5 ? "ron" : "tsumo";
-  const table = quizData[dealer][winType];
-  const keys = Object.keys(table);
+  const types = ["ron", "tsumo"];
+  const roles = ["child", "parent"];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const role = roles[Math.floor(Math.random() * roles.length)];
 
-  // 出題候補フィルタ（マンガン未満モード時）
-  const filteredKeys = currentMode
-    ? keys.filter(k => {
-        const [fu, han] = k.split("-").map(Number);
+  const pool = Object.keys(scoreData[role][type]);
+
+  // フィルター（マンガン未満モード）
+  const filtered = currentMode === "belowMangan"
+    ? pool.filter(key => {
+        const [fu, han] = key.split("-").map(Number);
         return (
           (fu === 20 && han <= 4) ||
           (fu === 30 && han <= 3) ||
@@ -46,86 +43,80 @@ function nextQuestion() {
           (fu === 50 && han <= 3)
         );
       })
-    : keys;
+    : pool;
 
-  const selectedKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
-  const [fu, han] = selectedKey.split("-").map(Number);
-  const questionText = `${fu}符${han}翻・${dealer === "parent" ? "親" : "子"}の${winType === "ron" ? "ロン" : "ツモ"}`;
+  const key = filtered[Math.floor(Math.random() * filtered.length)];
+  const [fu, han] = key.split("-").map(Number);
 
-  let correctAnswer;
-  if (winType === "ron") {
-    correctAnswer = table[selectedKey];
-  } else {
-    const entry = table[selectedKey];
-    if (dealer === "parent") {
-      correctAnswer = `${entry}ALL`;
+  document.getElementById("question").textContent = `${fu}符${han}翻・${role === "parent" ? "親" : "子"}の${type === "ron" ? "ロン" : "ツモ"}`;
+
+  let answer, choices = [];
+
+  if (type === "tsumo") {
+    if (role === "child") {
+      const tsumo = scoreData.child.tsumo[key];
+      answer = `${tsumo.child}/${tsumo.parent}`;
+      choices.push(answer);
+      while (choices.length < 4) {
+        const alt = scoreData.child.tsumo[randomKey(scoreData.child.tsumo)];
+        const option = `${alt.child}/${alt.parent}`;
+        if (!choices.includes(option)) choices.push(option);
+      }
     } else {
-      correctAnswer = `${entry.child}/${entry.parent}`;
-    }
-  }
-
-  // 選択肢生成（undefinedを除外）
-  const choices = [];
-  const added = new Set();
-  choices.push(correctAnswer);
-  added.add(correctAnswer);
-
-  while (choices.length < 4) {
-    const randKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
-    const alt = quizData[dealer][winType][randKey];
-
-    let altText;
-    if (winType === "ron") {
-      altText = alt;
-    } else {
-      if (dealer === "parent") {
-        altText = `${alt}ALL`;
-      } else {
-        altText = `${alt.child}/${alt.parent}`;
+      const val = scoreData.parent.tsumo[key];
+      answer = `${val}`;
+      choices.push(answer);
+      while (choices.length < 4) {
+        const alt = scoreData.parent.tsumo[randomKey(scoreData.parent.tsumo)];
+        const option = `${alt}`;
+        if (!choices.includes(option)) choices.push(option);
       }
     }
-
-    if (altText && !added.has(altText)) {
-      choices.push(altText);
-      added.add(altText);
+  } else {
+    const val = scoreData[role].ron[key];
+    answer = `${val}`;
+    choices.push(answer);
+    while (choices.length < 4) {
+      const alt = scoreData[role].ron[randomKey(scoreData[role].ron)];
+      const option = `${alt}`;
+      if (!choices.includes(option)) choices.push(option);
     }
   }
 
+  currentAnswer = answer;
   shuffleArray(choices);
-
-  // 表示
-  document.getElementById("question").textContent = questionText;
-  const choicesDiv = document.getElementById("choices");
-  choicesDiv.innerHTML = "";
+  const choicesContainer = document.getElementById("choices");
+  choicesContainer.innerHTML = "";
   choices.forEach(choice => {
     const btn = document.createElement("button");
     btn.textContent = choice;
-    btn.onclick = () => {
-      if (choice === correctAnswer) {
-        document.getElementById("result").textContent = "正解！";
-        score += 10;
-        updateScore();
-      } else {
-        document.getElementById("result").textContent = `不正解… 正解は ${correctAnswer} です`;
-      }
-      document.getElementById("next-button").style.display = "block";
-    };
-    choicesDiv.appendChild(btn);
+    btn.onclick = () => checkAnswer(choice);
+    choicesContainer.appendChild(btn);
   });
-
-  currentQuestion = {
-    correctAnswer,
-    dealer,
-    winType,
-    fu,
-    han
-  };
 }
 
-// シャッフル関数
+function checkAnswer(selected) {
+  const result = document.getElementById("result");
+  if (selected === currentAnswer) {
+    result.textContent = "正解！";
+    score += 10;
+    updateScore();
+  } else {
+    result.textContent = `不正解… 正解は ${currentAnswer} です`;
+  }
+  document.getElementById("next-button").style.display = "block";
+}
+
+function randomKey(obj) {
+  const keys = Object.keys(obj);
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
 }
+
+window.addEventListener("DOMContentLoaded", loadScoreData);

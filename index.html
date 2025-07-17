@@ -2,32 +2,30 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>麻雀 点数クイズ</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <!-- スタート画面 -->
   <div id="start-screen">
-    <h1 class="title">麻雀 点数クイズ</h1>
-    <p class="subtitle">出題モードを選択してください</p>
+    <div class="title">麻雀 点数クイズ</div>
+    <div class="subtitle">出題モードを選んでください</div>
     <div class="mode-buttons">
-      <button onclick="startGame(false)">通常モード</button>
-      <button onclick="startGame(true)">マンガン未満モード</button>
+      <button onclick="startQuiz('normal')">すべて出題</button>
+      <button onclick="startQuiz('belowMangan')">マンガン未満</button>
     </div>
   </div>
 
   <!-- クイズ画面 -->
-  <div id="quiz-container" style="display: none;">
+  <div id="quiz-container" style="display:none;">
     <div id="score-area">
-      <p id="score"></p>
+      <div id="score">スコア: 0</div>
     </div>
-    <div id="question-area">
-      <p id="question"></p>
-      <div id="choices" class="choice-grid"></div>
-      <p id="result"></p>
-    </div>
-    <button onclick="nextQuestion()" id="next-button" style="display: none;">次の問題</button>
+    <div id="question">問題がここに表示されます</div>
+    <div class="choice-grid" id="choices"></div>
+    <div id="result"></div>
+    <button id="next-button" onclick="nextQuestion()" style="display:none;">次の問題</button>
   </div>
 
   <script src="js/script.js"></script>

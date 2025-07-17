@@ -8,7 +8,7 @@
 </head>
 <body>
   <!-- スタート画面 -->
-  <div id="start-screen" class="start-screen">
+  <div id="start-screen">
     <h1 class="title">麻雀 点数クイズ</h1>
     <p class="subtitle">出題モードを選択してください</p>
     <div class="mode-buttons">
@@ -19,11 +19,13 @@
 
   <!-- クイズ画面 -->
   <div id="quiz-container" style="display: none;">
+    <div id="score-area">
+      <p id="score"></p>
+    </div>
     <div id="question-area">
       <p id="question"></p>
       <div id="choices" class="choice-grid"></div>
       <p id="result"></p>
-      <p id="score"></p>
     </div>
     <button onclick="nextQuestion()" id="next-button" style="display: none;">次の問題</button>
   </div>

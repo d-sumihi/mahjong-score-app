@@ -1,3 +1,11 @@
+/* 共通背景 */
+body {
+  margin: 0;
+  font-family: "Helvetica Neue", sans-serif;
+  background: linear-gradient(to bottom, #1c1f2b, #2a2d3a);
+  color: #fff;
+}
+
 /* スタート画面 */
 #start-screen {
   display: flex;
@@ -6,8 +14,6 @@
   justify-content: center;
   height: 100vh;
   padding: 1rem;
-  background: linear-gradient(to bottom, #1c1f2b, #2a2d3a);
-  color: #fff;
   text-align: center;
 }
 
@@ -59,12 +65,13 @@
   font-weight: bold;
   margin-bottom: 1rem;
   color: #ffd700;
+  text-align: center;
 }
 
 #question {
   font-size: 2rem;
-  background-color: #f0f0f0;
-  color: #1e1e1e;
+  background-color: #ffffff;
+  color: #1c1f2b;
   padding: 1rem 2rem;
   border-radius: 12px;
   text-align: center;
@@ -84,14 +91,14 @@
   font-size: 1.1rem;
   border-radius: 8px;
   border: none;
-  background-color: #4caf50;
+  background-color: #3f51b5;
   color: white;
   transition: background-color 0.2s ease;
   cursor: pointer;
 }
 
 .choice-grid button:hover {
-  background-color: #66bb6a;
+  background-color: #5c6bc0;
 }
 
 #result {

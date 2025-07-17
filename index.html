@@ -1,33 +1,33 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>麻雀点数 千本ノック</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>麻雀 点数クイズ</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-    <h1>麻雀点数 千本ノック</h1>
-  
-    <!-- スタート画面 -->
-    <div id="startContainer">
-      <label>
-        <input type="checkbox" id="nonManganMode"> マンガン未満モード
-      </label>
-      <br><br>
-      <button id="startButton">スタート</button>
+  <!-- スタート画面 -->
+  <div id="start-screen" class="start-screen">
+    <h1 class="title">麻雀 点数クイズ</h1>
+    <p class="subtitle">出題モードを選択してください</p>
+    <div class="mode-buttons">
+      <button onclick="startGame(false)">通常モード</button>
+      <button onclick="startGame(true)">マンガン未満モード</button>
     </div>
-  
-    <!-- クイズ画面 -->
-    <div id="quizContainer" style="display: none;">
-      <div id="question"></div>
-      <div id="choices" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;"></div>
-      <div id="result"></div>
-      <div id="score">スコア: 0</div>
-      <button id="nextButton">次の問題</button>
+  </div>
+
+  <!-- クイズ画面 -->
+  <div id="quiz-container" style="display: none;">
+    <div id="question-area">
+      <p id="question"></p>
+      <div id="choices" class="choice-grid"></div>
+      <p id="result"></p>
+      <p id="score"></p>
     </div>
-  
-    <button id="muteToggle" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">🔊 ミュート</button>
-  
-    <script src="js/script.js"></script>
-</body>  
+    <button onclick="nextQuestion()" id="next-button" style="display: none;">次の問題</button>
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
 </html>

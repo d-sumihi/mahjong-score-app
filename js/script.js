@@ -1,134 +1,119 @@
-const correctSound = new Audio("sound/correct.mp3");
-const wrongSound = new Audio("sound/wrong.mp3");
-
-const questionElement = document.getElementById("question");
-const choicesElement = document.getElementById("choices");
-const resultElement = document.getElementById("result");
-const scoreElement = document.getElementById("score");
-const nextButton = document.getElementById("nextButton");
-const muteToggle = document.getElementById("muteToggle");
-const nonManganCheckbox = document.getElementById("nonManganMode");
-const startButton = document.getElementById("startButton");
-const startContainer = document.getElementById("startContainer");
-const quizContainer = document.getElementById("quizContainer");
-
+let currentQuestion = {};
 let score = 0;
-let correctAnswer = "";
-let isMuted = false;
-let currentMode = "child";
-let currentMethod = "ron";
+let manganlessMode = false;
 
-correctSound.volume = 0.5;
-wrongSound.volume = 0.5;
-
-muteToggle.addEventListener("click", () => {
-  isMuted = !isMuted;
-  correctSound.muted = isMuted;
-  wrongSound.muted = isMuted;
-  muteToggle.textContent = isMuted ? "🔇 ミュート解除" : "🔊 ミュート";
-});
-
-startButton.addEventListener("click", () => {
-  startContainer.style.display = "none";
-  quizContainer.style.display = "block";
-  displayQuestion();
-});
-
-function getValidKeys(scoreTable, mode, method, nonManganOnly) {
-  const keys = Object.keys(scoreTable[mode][method]);
-  if (!nonManganOnly) return keys;
-
-  return keys.filter(key => {
-    const [fu, han] = key.split("-").map(Number);
-    if (fu === 20 && han <= 4) return true;
-    if ((fu === 30 || fu === 40 || fu === 50) && han <= 3) return true;
-    return false;
-  });
+function startGame(isManganless) {
+  manganlessMode = isManganless;
+  document.getElementById("start-screen").style.display = "none";
+  document.getElementById("quiz-container").style.display = "block";
+  score = 0;
+  document.getElementById("score").textContent = "スコア: 0";
+  nextQuestion();
 }
 
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
+function nextQuestion() {
+  document.getElementById("result").textContent = "";
+  document.getElementById("next-button").style.display = "none";
 
-async function displayQuestion() {
-  const response = await fetch("data/scoreTable.json");
-  const scoreTable = await response.json();
-  currentMode = Math.random() < 0.5 ? "child" : "parent";
-  currentMethod = Math.random() < 0.5 ? "ron" : "tsumo";
-  const nonManganOnly = nonManganCheckbox.checked;
+  const fuOptions = [20, 30, 40, 50];
+  const hanOptions = [1, 2, 3, 4];
+  let fu, han;
 
-  const validKeys = getValidKeys(scoreTable, currentMode, currentMethod, nonManganOnly);
-  const randomKey = validKeys[Math.floor(Math.random() * validKeys.length)];
-  const [fu, han] = randomKey.split("-").map(Number);
-  const answer = scoreTable[currentMode][currentMethod][randomKey];
+  do {
+    fu = fuOptions[Math.floor(Math.random() * fuOptions.length)];
+    han = hanOptions[Math.floor(Math.random() * hanOptions.length)];
+  } while (
+    manganlessMode &&
+    !(
+      (fu === 20 && han <= 4) ||
+      (fu >= 30 && han <= 3)
+    )
+  );
 
-  questionElement.textContent = `${currentMode === "parent" ? "親" : "子"}・${currentMethod === "ron" ? "ロン" : "ツモ"}：${fu}符${han}翻`;
+  const isParent = Math.random() < 0.5;
+  const isTsumo = Math.random() < 0.5;
+  const role = isParent ? "親" : "子";
+  const method = isTsumo ? "ツモ" : "ロン";
+  currentQuestion = { fu, han, isParent, isTsumo };
 
-  let displayAnswer = "";
-  if (currentMethod === "tsumo") {
-    if (currentMode === "parent") {
-      displayAnswer = `${answer}ALL`;
-    } else {
-      displayAnswer = `${answer.child}/${answer.parent}`;
-    }
-  } else {
-    displayAnswer = answer.toString();
-  }
+  document.getElementById("question").textContent = `${fu}符${han}翻・${role}の${method}`;
 
-  correctAnswer = displayAnswer;
+  fetch("data/scoreTable.json")
+    .then((response) => response.json())
+    .then((data) => {
+      const roleKey = isParent ? "parent" : "child";
+      const methodKey = isTsumo ? "tsumo" : "ron";
+      const key = `${fu}-${han}`;
+      let correct;
 
-  const allKeys = getValidKeys(scoreTable, currentMode, currentMethod, false);
-  const otherKeys = allKeys.filter(k => k !== randomKey);
-  shuffle(otherKeys);
-
-  const choices = [displayAnswer];
-  while (choices.length < 4 && otherKeys.length > 0) {
-    const k = otherKeys.pop();
-    const v = scoreTable[currentMode][currentMethod][k];
-    let choice = "";
-
-    if (currentMethod === "tsumo") {
-      if (currentMode === "parent") {
-        choice = `${v}ALL`;
+      if (isTsumo) {
+        const val = data[roleKey][methodKey][key];
+        correct = isParent
+          ? `${val}ALL`
+          : `${val.child}/${val.parent}`;
       } else {
-        choice = `${v.child}/${v.parent}`;
+        correct = data[roleKey][methodKey][key];
       }
+
+      currentQuestion.answer = isTsumo && !isParent ? `${correct}` : `${correct}`;
+
+      generateChoices(data);
+    });
+}
+
+function generateChoices(data) {
+  const { fu, han, isParent, isTsumo, answer } = currentQuestion;
+  const roleKey = isParent ? "parent" : "child";
+  const methodKey = isTsumo ? "tsumo" : "ron";
+
+  const choiceSet = new Set();
+  choiceSet.add(answer);
+
+  const allKeys = Object.keys(data[roleKey][methodKey]);
+  while (choiceSet.size < 4) {
+    const randKey = allKeys[Math.floor(Math.random() * allKeys.length)];
+    if (randKey === `${fu}-${han}`) continue;
+
+    let val = data[roleKey][methodKey][randKey];
+    let formatted;
+
+    if (isTsumo) {
+      formatted = isParent ? `${val}ALL` : `${val.child}/${val.parent}`;
     } else {
-      choice = v.toString();
+      formatted = `${val}`;
     }
 
-    if (!choices.includes(choice)) {
-      choices.push(choice);
-    }
+    choiceSet.add(formatted);
   }
 
-  shuffle(choices);
-  choicesElement.innerHTML = "";
-  choices.forEach(c => {
+  const choicesArray = Array.from(choiceSet).sort(() => Math.random() - 0.5);
+  const choiceContainer = document.getElementById("choices");
+  choiceContainer.innerHTML = "";
+
+  choicesArray.forEach((choice) => {
     const btn = document.createElement("button");
-    btn.textContent = c;
-    btn.onclick = () => {
-      if (c === correctAnswer) {
-        resultElement.textContent = "正解！";
-        if (!isMuted) correctSound.play();
-        score += 10;
-      } else {
-        resultElement.textContent = `不正解… 正解は ${correctAnswer}`;
-        if (!isMuted) wrongSound.play();
-      }
-      scoreElement.textContent = `スコア: ${score}`;
-      nextButton.disabled = false;
-      Array.from(choicesElement.children).forEach(b => b.disabled = true);
-    };
-    choicesElement.appendChild(btn);
+    btn.textContent = choice;
+    btn.onclick = () => checkAnswer(choice);
+    choiceContainer.appendChild(btn);
   });
-
-  nextButton.disabled = true;
-  resultElement.textContent = "";
 }
 
-nextButton.addEventListener("click", displayQuestion);
+function checkAnswer(selected) {
+  const result = document.getElementById("result");
+  const nextBtn = document.getElementById("next-button");
+
+  if (selected === currentQuestion.answer) {
+    result.textContent = "正解！";
+    score += 10;
+  } else {
+    result.textContent = `不正解... 正解は ${currentQuestion.answer} です`;
+  }
+
+  document.getElementById("score").textContent = `スコア: ${score}`;
+  nextBtn.style.display = "inline-block";
+
+  // 全ボタンを無効化
+  Array.from(document.getElementById("choices").children).forEach(btn => {
+    btn.disabled = true;
+  });
+}

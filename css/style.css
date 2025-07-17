@@ -1,63 +1,83 @@
 body {
-  font-family: sans-serif;
-  margin: 20px;
-  background-color: #f8f8f8;
-  color: #333;
+  margin: 0;
+  padding: 0;
+  background-color: #1e1f2f;
+  color: #ffffff;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-h1 {
-  font-size: 24px;
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 1rem;
+  background: linear-gradient(to bottom, #1c1f2b, #2a2d3a);
+  color: #fff;
   text-align: center;
-  margin-bottom: 20px;
 }
 
-#question {
-  font-size: 20px;
-  margin-bottom: 20px;
-  text-align: center;
+.start-screen .title {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
 }
 
-#choices {
+.start-screen .subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  color: #ccc;
+}
+
+.mode-buttons {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  max-width: 400px;
-  margin: 0 auto 20px auto;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+  max-width: 300px;
 }
 
-#choices button {
-  padding: 10px;
-  font-size: 16px;
+.mode-buttons button {
+  padding: 1rem;
+  font-size: 1rem;
+  background-color: #3f51b5;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  transition: background-color 0.2s ease;
   cursor: pointer;
 }
 
-#result {
-  text-align: center;
-  font-size: 18px;
-  margin-bottom: 10px;
+.mode-buttons button:hover {
+  background-color: #5c6bc0;
 }
 
-#score {
-  text-align: center;
-  font-size: 18px;
-  margin-bottom: 20px;
+#quiz-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
 }
 
-#nextButton {
-  display: block;
-  margin: 0 auto;
-  padding: 10px 20px;
-  font-size: 16px;
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.choice-grid button {
+  padding: 1rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #4caf50;
+  color: white;
+  transition: background-color 0.2s ease;
   cursor: pointer;
 }
 
-#muteToggle {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  font-size: 14px;
-  padding: 5px 10px;
-  background-color: #eee;
-  border: 1px solid #ccc;
-  cursor: pointer;
+.choice-grid button:hover {
+  background-color: #66bb6a;
 }

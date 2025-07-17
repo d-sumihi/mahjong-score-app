@@ -1,8 +1,8 @@
-/* 共通背景 */
+/* 全体背景とフォント */
 body {
   margin: 0;
   font-family: "Helvetica Neue", sans-serif;
-  background: linear-gradient(to bottom, #1c1f2b, #2a2d3a);
+  background-color: #1c1f2b; /* グラデーションを削除し、統一 */
   color: #fff;
 }
 
@@ -60,14 +60,18 @@ body {
   padding: 2rem;
 }
 
+/* スコア右寄せ */
 #score {
   font-size: 1.2rem;
   font-weight: bold;
   margin-bottom: 1rem;
   color: #ffd700;
-  text-align: center;
+  text-align: right;
+  width: 100%;
+  max-width: 600px;
 }
 
+/* 問題（白背景・中央） */
 #question {
   font-size: 2rem;
   background-color: #ffffff;
@@ -79,6 +83,7 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
+/* 選択肢2列 */
 .choice-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -101,6 +106,7 @@ body {
   background-color: #5c6bc0;
 }
 
+/* 結果表示 */
 #result {
   font-size: 1rem;
   margin-top: 1rem;
@@ -108,7 +114,10 @@ body {
   height: 1.5rem;
 }
 
+/* 次の問題ボタン（中央揃え） */
 #next-button {
+  display: block;
+  margin: 0 auto;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   border: none;

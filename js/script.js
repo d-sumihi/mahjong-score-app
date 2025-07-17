@@ -1,119 +1,131 @@
-let currentQuestion = {};
 let score = 0;
-let manganlessMode = false;
+let quizData = {};
+let currentMode = false; // false: 通常モード, true: マンガン未満モード
+let currentQuestion = null;
 
-function startGame(isManganless) {
-  manganlessMode = isManganless;
+// JSON読み込み
+fetch("data/scoreTable.json")
+  .then(response => response.json())
+  .then(data => {
+    quizData = data;
+  });
+
+// スタート処理
+function startGame(manganLessMode) {
+  currentMode = manganLessMode;
   document.getElementById("start-screen").style.display = "none";
-  document.getElementById("quiz-container").style.display = "block";
+  document.getElementById("quiz-container").style.display = "flex";
   score = 0;
-  document.getElementById("score").textContent = "スコア: 0";
+  updateScore();
   nextQuestion();
 }
 
+// スコア更新
+function updateScore() {
+  document.getElementById("score").textContent = `スコア: ${score}`;
+}
+
+// 問題作成
 function nextQuestion() {
   document.getElementById("result").textContent = "";
   document.getElementById("next-button").style.display = "none";
 
-  const fuOptions = [20, 30, 40, 50];
-  const hanOptions = [1, 2, 3, 4];
-  let fu, han;
+  const dealer = Math.random() < 0.5 ? "parent" : "child";
+  const winType = Math.random() < 0.5 ? "ron" : "tsumo";
+  const table = quizData[dealer][winType];
+  const keys = Object.keys(table);
 
-  do {
-    fu = fuOptions[Math.floor(Math.random() * fuOptions.length)];
-    han = hanOptions[Math.floor(Math.random() * hanOptions.length)];
-  } while (
-    manganlessMode &&
-    !(
-      (fu === 20 && han <= 4) ||
-      (fu >= 30 && han <= 3)
-    )
-  );
+  // 出題候補フィルタ（マンガン未満モード時）
+  const filteredKeys = currentMode
+    ? keys.filter(k => {
+        const [fu, han] = k.split("-").map(Number);
+        return (
+          (fu === 20 && han <= 4) ||
+          (fu === 30 && han <= 3) ||
+          (fu === 40 && han <= 3) ||
+          (fu === 50 && han <= 3)
+        );
+      })
+    : keys;
 
-  const isParent = Math.random() < 0.5;
-  const isTsumo = Math.random() < 0.5;
-  const role = isParent ? "親" : "子";
-  const method = isTsumo ? "ツモ" : "ロン";
-  currentQuestion = { fu, han, isParent, isTsumo };
+  const selectedKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
+  const [fu, han] = selectedKey.split("-").map(Number);
+  const questionText = `${fu}符${han}翻・${dealer === "parent" ? "親" : "子"}の${winType === "ron" ? "ロン" : "ツモ"}`;
 
-  document.getElementById("question").textContent = `${fu}符${han}翻・${role}の${method}`;
-
-  fetch("data/scoreTable.json")
-    .then((response) => response.json())
-    .then((data) => {
-      const roleKey = isParent ? "parent" : "child";
-      const methodKey = isTsumo ? "tsumo" : "ron";
-      const key = `${fu}-${han}`;
-      let correct;
-
-      if (isTsumo) {
-        const val = data[roleKey][methodKey][key];
-        correct = isParent
-          ? `${val}ALL`
-          : `${val.child}/${val.parent}`;
-      } else {
-        correct = data[roleKey][methodKey][key];
-      }
-
-      currentQuestion.answer = isTsumo && !isParent ? `${correct}` : `${correct}`;
-
-      generateChoices(data);
-    });
-}
-
-function generateChoices(data) {
-  const { fu, han, isParent, isTsumo, answer } = currentQuestion;
-  const roleKey = isParent ? "parent" : "child";
-  const methodKey = isTsumo ? "tsumo" : "ron";
-
-  const choiceSet = new Set();
-  choiceSet.add(answer);
-
-  const allKeys = Object.keys(data[roleKey][methodKey]);
-  while (choiceSet.size < 4) {
-    const randKey = allKeys[Math.floor(Math.random() * allKeys.length)];
-    if (randKey === `${fu}-${han}`) continue;
-
-    let val = data[roleKey][methodKey][randKey];
-    let formatted;
-
-    if (isTsumo) {
-      formatted = isParent ? `${val}ALL` : `${val.child}/${val.parent}`;
+  let correctAnswer;
+  if (winType === "ron") {
+    correctAnswer = table[selectedKey];
+  } else {
+    const entry = table[selectedKey];
+    if (dealer === "parent") {
+      correctAnswer = `${entry}ALL`;
     } else {
-      formatted = `${val}`;
+      correctAnswer = `${entry.child}/${entry.parent}`;
+    }
+  }
+
+  // 選択肢生成（undefinedを除外）
+  const choices = [];
+  const added = new Set();
+  choices.push(correctAnswer);
+  added.add(correctAnswer);
+
+  while (choices.length < 4) {
+    const randKey = filteredKeys[Math.floor(Math.random() * filteredKeys.length)];
+    const alt = quizData[dealer][winType][randKey];
+
+    let altText;
+    if (winType === "ron") {
+      altText = alt;
+    } else {
+      if (dealer === "parent") {
+        altText = `${alt}ALL`;
+      } else {
+        altText = `${alt.child}/${alt.parent}`;
+      }
     }
 
-    choiceSet.add(formatted);
+    if (altText && !added.has(altText)) {
+      choices.push(altText);
+      added.add(altText);
+    }
   }
 
-  const choicesArray = Array.from(choiceSet).sort(() => Math.random() - 0.5);
-  const choiceContainer = document.getElementById("choices");
-  choiceContainer.innerHTML = "";
+  shuffleArray(choices);
 
-  choicesArray.forEach((choice) => {
+  // 表示
+  document.getElementById("question").textContent = questionText;
+  const choicesDiv = document.getElementById("choices");
+  choicesDiv.innerHTML = "";
+  choices.forEach(choice => {
     const btn = document.createElement("button");
     btn.textContent = choice;
-    btn.onclick = () => checkAnswer(choice);
-    choiceContainer.appendChild(btn);
+    btn.onclick = () => {
+      if (choice === correctAnswer) {
+        document.getElementById("result").textContent = "正解！";
+        score += 10;
+        updateScore();
+      } else {
+        document.getElementById("result").textContent = `不正解… 正解は ${correctAnswer} です`;
+      }
+      document.getElementById("next-button").style.display = "block";
+    };
+    choicesDiv.appendChild(btn);
   });
+
+  currentQuestion = {
+    correctAnswer,
+    dealer,
+    winType,
+    fu,
+    han
+  };
 }
 
-function checkAnswer(selected) {
-  const result = document.getElementById("result");
-  const nextBtn = document.getElementById("next-button");
-
-  if (selected === currentQuestion.answer) {
-    result.textContent = "正解！";
-    score += 10;
-  } else {
-    result.textContent = `不正解... 正解は ${currentQuestion.answer} です`;
+// シャッフル関数
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
   }
-
-  document.getElementById("score").textContent = `スコア: ${score}`;
-  nextBtn.style.display = "inline-block";
-
-  // 全ボタンを無効化
-  Array.from(document.getElementById("choices").children).forEach(btn => {
-    btn.disabled = true;
-  });
 }

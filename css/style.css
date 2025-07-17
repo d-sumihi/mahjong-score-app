@@ -1,3 +1,4 @@
+/* 全体背景・フォント設定 */
 body {
   margin: 0;
   font-family: "Helvetica Neue", sans-serif;
@@ -5,7 +6,7 @@ body {
   color: #fff;
 }
 
-/* スタート画面 */
+/* ===== スタート画面 ===== */
 #start-screen {
   display: flex;
   flex-direction: column;
@@ -51,7 +52,7 @@ body {
   background-color: #5c6bc0;
 }
 
-/* クイズ画面 */
+/* ===== クイズ画面 ===== */
 #quiz-container {
   display: flex;
   flex-direction: column;
@@ -59,7 +60,7 @@ body {
   padding: 2rem;
 }
 
-/* スコア右寄せ */
+/* スコア表示：右上寄せ */
 #score-area {
   width: 100%;
   max-width: 600px;
@@ -83,7 +84,9 @@ body {
   border-radius: 12px;
   text-align: center;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  max-width: 100%;
+  word-break: keep-all;
 }
 
 /* 選択肢 */
@@ -92,9 +95,12 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 600px;
 }
 
 .choice-grid button {
+  width: 100%;
   padding: 1rem;
   font-size: 1.1rem;
   border-radius: 8px;
@@ -109,6 +115,7 @@ body {
   background-color: #5c6bc0;
 }
 
+/* 正解・不正解表示 */
 #result {
   font-size: 1rem;
   margin-top: 1rem;
@@ -116,7 +123,7 @@ body {
   height: 1.5rem;
 }
 
-/* 次の問題ボタン（中央） */
+/* 次の問題ボタン（中央揃え） */
 #next-button {
   display: block;
   margin: 0 auto;
@@ -132,4 +139,20 @@ body {
 
 #next-button:hover {
   background-color: #5c6bc0;
+}
+
+/* ===== レスポンシブ対応（スマホ） ===== */
+@media (max-width: 600px) {
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #score-area {
+    justify-content: center;
+  }
+
+  #question {
+    font-size: 1.6rem;
+    padding: 1rem;
+  }
 }

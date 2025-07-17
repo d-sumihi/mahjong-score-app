@@ -1,58 +1,3 @@
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #1e1f2f;
-  color: #ffffff;
-  font-family: 'Segoe UI', sans-serif;
-}
-
-.start-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  padding: 1rem;
-  background: linear-gradient(to bottom, #1c1f2b, #2a2d3a);
-  color: #fff;
-  text-align: center;
-}
-
-.start-screen .title {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-}
-
-.start-screen .subtitle {
-  font-size: 1.2rem;
-  margin-bottom: 2rem;
-  color: #ccc;
-}
-
-.mode-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  width: 100%;
-  max-width: 300px;
-}
-
-.mode-buttons button {
-  padding: 1rem;
-  font-size: 1rem;
-  background-color: #3f51b5;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  transition: background-color 0.2s ease;
-  cursor: pointer;
-}
-
-.mode-buttons button:hover {
-  background-color: #5c6bc0;
-}
-
 #quiz-container {
   display: flex;
   flex-direction: column;
@@ -60,16 +5,34 @@ body {
   padding: 2rem;
 }
 
+#score {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #ffd700;
+}
+
+#question {
+  font-size: 2rem;
+  background-color: #f0f0f0;
+  color: #1e1e1e;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
 .choice-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  margin: 1rem 0;
+  margin-bottom: 1.5rem;
 }
 
 .choice-grid button {
   padding: 1rem;
-  font-size: 1rem;
+  font-size: 1.1rem;
   border-radius: 8px;
   border: none;
   background-color: #4caf50;
@@ -80,4 +43,26 @@ body {
 
 .choice-grid button:hover {
   background-color: #66bb6a;
+}
+
+#result {
+  font-size: 1rem;
+  margin-top: 1rem;
+  text-align: center;
+  height: 1.5rem;
+}
+
+#next-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #3f51b5;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#next-button:hover {
+  background-color: #5c6bc0;
 }

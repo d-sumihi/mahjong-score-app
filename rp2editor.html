@@ -42,6 +42,11 @@
         .osc-wrapper { width: 520px; background: #1e1e1e; border: 1px solid #333; border-radius: 5px; padding: 10px; display: flex; flex-direction: column; gap: 10px; color: #d4d4d4; }
         .osc-header { font-weight: bold; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px;}
         
+        /* 一時停止ボタンのスタイル */
+        .pause-btn { background: #ffc107; color: black; padding: 4px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .pause-btn:hover { opacity: 0.8; }
+        .pause-btn.resumed { background: #28a745; color: white; }
+
         .osc-settings { display: flex; flex-direction: column; gap: 10px; font-size: 14px; background: #252526; padding: 10px; border-radius: 5px; border: 1px solid #444;}
         .osc-settings label { display: flex; flex-direction: column; gap: 4px; color: #ccc;}
         .osc-settings select { background: #3c3c3c; color: #fff; border: 1px solid #555; padding: 6px; border-radius: 3px; font-size: 14px;}
@@ -63,6 +68,7 @@
         button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
         .connect-btn { background: #6c757d; color: white; }
         .run-btn { background: #28a745; color: white; }
+        .stop-btn { background: #dc3545; color: white; } /* 停止ボタンのスタイル */
         .sample-btn { background: #007bff; color: white; }
 
         .save-group { position: relative; display: flex; }
@@ -77,11 +83,12 @@
 </head>
 <body>
 
-    <h2>🚀 Pico Web Editor & Oscilloscope (Sweep Mode)</h2>
+    <h2>🚀 Pico Web Editor & Oscilloscope</h2>
 
     <div class="toolbar">
         <button class="connect-btn" onclick="connectPico()">🔌 接続 / 再接続</button>
         <button class="run-btn" onclick="runCode()">▶️ 実行（波形監視つき）</button>
+        <button class="stop-btn" onclick="stopCode()">⏹️ 停止 (Ctrl+C)</button>
         
         <div class="save-group">
             <button id="save-btn" class="save-btn main-save" onclick="saveCode()">💾 保存（main.py）</button>
@@ -107,7 +114,10 @@
         </div>
 
         <div class="osc-wrapper">
-            <div class="osc-header">📈 リアルタイム・オシロスコープ</div>
+            <div class="osc-header">
+                <span>📈 リアルタイム・オシロスコープ</span>
+                <button id="osc-pause-btn" class="pause-btn" onclick="toggleOscPause()">⏸️ 一時停止</button>
+            </div>
             
             <div class="osc-settings">
                 <label class="check-label">
@@ -204,6 +214,7 @@
         let lastSavedContent = ""; 
         
         let oscData = [];
+        let oscPaused = false; // ★一時停止フラグ
         
         const editor = document.getElementById('editor');
         const highlightLayer = document.getElementById('highlight-layer');
@@ -221,8 +232,24 @@
         function changeVolts(step) { voltsIndex = Math.max(0, Math.min(voltsOptions.length - 1, voltsIndex + step)); document.getElementById('voltsDisplay').innerText = voltsOptions[voltsIndex].label; }
         function changeTime(step) { timeIndex = Math.max(0, Math.min(timeOptions.length - 1, timeIndex + step)); document.getElementById('timeDisplay').innerText = timeOptions[timeIndex].label; }
 
+        // ★オシロ一時停止のトグル関数
+        function toggleOscPause() {
+            oscPaused = !oscPaused;
+            const btn = document.getElementById('osc-pause-btn');
+            if (oscPaused) {
+                btn.innerText = "▶️ 再開";
+                btn.classList.add('resumed');
+            } else {
+                btn.innerText = "⏸️ 一時停止";
+                btn.classList.remove('resumed');
+            }
+        }
+
         function renderOscilloscope() {
             requestAnimationFrame(renderOscilloscope);
+            
+            // ★一時停止中はDOMの更新や古いデータの破棄をスキップして波形をフリーズさせる
+            if (oscPaused) return; 
             
             const width = 500, height = 300, pixelsPerDiv = 50, zeroY = 250; 
             const voltsDiv = voltsOptions[voltsIndex].value; 
@@ -341,7 +368,19 @@
             } catch (err) { log("❌ 接続エラー: " + err, "err"); }
         }
 
-        // ★修正点：各命令の間に await sleep(50) を挟んでPicoに確実に裏モードに入ってもらう
+        // ★プログラム強制停止処理 (Ctrl+C を送信)
+        async function stopCode() {
+            if (!port) { alert("🔌 Picoと接続してください！"); return; }
+            try {
+                const w = port.writable.getWriter();
+                await w.write(new TextEncoder().encode("\x03")); // Ctrl-C
+                w.releaseLock();
+                log("⏹️ プログラムを強制終了しました (KeyboardInterrupt)", "err");
+                isMuted = false; // 裏モードが中断された時のために出力をミュート解除
+                currentTask = "";
+            } catch (err) { log("❌ 停止エラー", "err"); }
+        }
+
         async function listFiles() {
             if (!port) return;
             try {
@@ -392,6 +431,7 @@ _osc_timer.init(period=20, mode=machine.Timer.PERIODIC, callback=_osc_cb)
             if (!port) { alert("🔌 Picoと接続してください！"); return; }
             try {
                 oscData = []; 
+                if(oscPaused) toggleOscPause(); // 実行時は一時停止を強制解除
                 isMuted = true; outputBuffer = ""; currentTask = "run"; log("▶️ 実行中...");
                 const encoder = new TextEncoder(); const w = port.writable.getWriter();
                 await w.write(encoder.encode("\x03")); await sleep(50); // Ctrl-C
@@ -441,7 +481,10 @@ _osc_timer.init(period=20, mode=machine.Timer.PERIODIC, callback=_osc_cb)
                     for (let line of lines) {
                         let cleanLine = line.replace(/\r/g, '');
                         if (cleanLine.startsWith('__OSC__:')) {
-                            oscData.push({ t: performance.now(), v: parseFloat(cleanLine.substring(8)) });
+                            // ★一時停止中は新しい波形データを取り込まず無視する
+                            if (!oscPaused) {
+                                oscData.push({ t: performance.now(), v: parseFloat(cleanLine.substring(8)) });
+                            }
                         } else {
                             normalText += line + '\n';
                         }

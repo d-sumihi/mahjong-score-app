@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Pico Web Editor & Oscilloscope</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        
+        .toolbar { margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .sample-toolbar { margin-top: 10px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .main-container { display: flex; gap: 15px; height: 600px; align-items: stretch; }
+
+        .sidebar { width: 200px; background: #fff; border: 1px solid #ccc; border-radius: 5px; display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar-header { background: #e9ecef; padding: 8px 10px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
+        .refresh-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 0; }
+        .file-list { flex-grow: 1; overflow-y: auto; padding: 5px; }
+        .file-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-family: monospace; font-size: 14px; }
+        .file-item:hover { background: #e2eef9; }
+
+        .editor-wrapper { flex: 1; display: flex; background: #1e1e1e; border: 1px solid #333; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .line-numbers { background: #1e1e1e; color: #858585; padding: 10px 8px; text-align: right; border-right: 1px solid #444; user-select: none; overflow-y: hidden; min-width: 35px; 
+            font-family: Consolas, "Courier New", "MS Gothic", monospace !important; font-size: 16px !important; line-height: 1.5 !important;
+        }
+        .editor-container { position: relative; flex-grow: 1; overflow: hidden; background: #1e1e1e; }
+        #editor, #highlight-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; margin: 0 !important; padding: 10px !important; border: 0 !important; outline: none !important;
+            font-family: Consolas, "Courier New", "MS Gothic", "Meiryo", monospace !important; font-size: 16px !important; line-height: 1.5 !important;
+            letter-spacing: normal !important; word-spacing: normal !important; box-sizing: border-box !important; white-space: pre !important; tab-size: 4 !important; resize: none !important; overflow-wrap: normal !important;
+        }
+        #highlight-layer { z-index: 2; pointer-events: none; color: #d4d4d4; overflow: hidden; background: transparent; }
+        #editor { z-index: 1; color: transparent !important; background: transparent; caret-color: #fff; overflow: auto; }
+        #editor::selection { background: #264f78; color: transparent; }
+
+        .syn-keyword { color: #569cd6; }
+        .syn-string  { color: #ce9178; }
+        .syn-comment { color: #6a9955; }
+        .syn-number  { color: #b5cea8; }
+        .syn-func    { color: #dcdcaa; }
+        .syn-builtin { color: #4ec9b0; }
+
+        .osc-wrapper { width: 520px; background: #1e1e1e; border: 1px solid #333; border-radius: 5px; padding: 10px; display: flex; flex-direction: column; gap: 10px; color: #d4d4d4; }
+        .osc-header { font-weight: bold; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px;}
+        
+        .osc-settings { display: flex; flex-direction: column; gap: 10px; font-size: 14px; background: #252526; padding: 10px; border-radius: 5px; border: 1px solid #444;}
+        .osc-settings label { display: flex; flex-direction: column; gap: 4px; color: #ccc;}
+        .osc-settings select { background: #3c3c3c; color: #fff; border: 1px solid #555; padding: 6px; border-radius: 3px; font-size: 14px;}
+        .osc-settings .check-label { flex-direction: row; align-items: center; font-weight: bold; color: #fff; cursor: pointer; }
+        .osc-settings .check-label input { width: 18px; height: 18px; cursor: pointer; margin-right: 8px;}
+        
+        .osc-svg-container { background: #022; border: 2px solid #555; border-radius: 5px; display: flex; justify-content: center; overflow: hidden; position: relative;}
+        
+        .osc-dial-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .dial-control { display: flex; align-items: center; justify-content: space-between; background: #3c3c3c; border: 1px solid #555; border-radius: 4px; padding: 4px; }
+        .dial-btn { background: #555; color: white; border: none; border-radius: 3px; width: 30px; height: 28px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;}
+        .dial-btn:hover { background: #777; }
+        .dial-display { font-size: 14px; font-weight: bold; text-align: center; flex-grow: 1; user-select: none;}
+
+        #console { background: #000; color: #d4d4d4; padding: 10px; height: 150px; overflow-y: scroll; border-radius: 5px; font-family: Consolas, monospace; white-space: pre-wrap; line-height: 1.4; margin-top: 10px; border: 1px solid #333; }
+        .console-ok { color: #4ec9b0; }
+        .console-err { color: #f48771; }
+
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        .connect-btn { background: #6c757d; color: white; }
+        .run-btn { background: #28a745; color: white; }
+        .sample-btn { background: #007bff; color: white; }
+
+        .save-group { position: relative; display: flex; }
+        .save-btn { background: #dc3545; color: white; }
+        .save-btn.main-save { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+        .save-btn.dropdown-toggle { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 10px 12px; border-left: 1px solid #b02a37; }
+        .save-btn.dropdown-toggle:hover { background: #c82333; }
+        .dropdown-menu { position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; width: 180px; margin-top: 5px; display: none; }
+        .dropdown-item { padding: 10px; cursor: pointer; font-size: 14px; color: #333; }
+        .dropdown-item:hover { background: #e9ecef; }
+    </style>
+</head>
+<body>
+
+    <h2>🚀 Pico Web Editor & Oscilloscope (Sweep Mode)</h2>
+
+    <div class="toolbar">
+        <button class="connect-btn" onclick="connectPico()">🔌 接続 / 再接続</button>
+        <button class="run-btn" onclick="runCode()">▶️ 実行（波形監視つき）</button>
+        
+        <div class="save-group">
+            <button id="save-btn" class="save-btn main-save" onclick="saveCode()">💾 保存（main.py）</button>
+            <button class="save-btn dropdown-toggle" onclick="toggleSaveMenu(event)">▼</button>
+            <div id="save-menu" class="dropdown-menu">
+                <div class="dropdown-item" onclick="saveAsCode()">📝 名前を付けて保存...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">📂 Pico内ファイル<button class="refresh-btn" onclick="listFiles()" title="更新">🔄</button></div>
+            <div id="file-list" class="file-list"><div style="color:#999; font-size:12px; padding:5px; text-align:center;">未接続</div></div>
+        </div>
+
+        <div class="editor-wrapper">
+            <div id="line-numbers" class="line-numbers">1</div>
+            <div class="editor-container">
+                <pre id="highlight-layer"></pre>
+                <textarea id="editor" wrap="off" spellcheck="false" placeholder="# ここにMicroPythonのコードを書こう"></textarea>
+            </div>
+        </div>
+
+        <div class="osc-wrapper">
+            <div class="osc-header">📈 リアルタイム・オシロスコープ</div>
+            
+            <div class="osc-settings">
+                <label class="check-label">
+                    <input type="checkbox" id="oscEnable" checked> 実行時に指定ピンの波形を裏で監視する
+                </label>
+                <label>監視対象ピン (ADC / GP を一覧から選択)
+                    <select id="oscTarget"></select>
+                </label>
+            </div>
+
+            <div class="osc-svg-container">
+                <svg id="oscilloscope" width="500" height="300" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                            <rect width="50" height="50" fill="none" stroke="#050" stroke-width="1"/>
+                        </pattern>
+                    </defs>
+                    <rect width="500" height="300" fill="url(#grid)" />
+                    
+                    <line id="zeroAxis" x1="0" y1="250" x2="500" y2="250" stroke="#f39c12" stroke-width="2" />
+                    <text x="5" y="245" fill="#f39c12" font-size="12" font-family="sans-serif">0V</text>
+                    
+                    <line id="peakLineMax" x1="0" y1="0" x2="500" y2="0" stroke="#3498db" stroke-width="1" stroke-dasharray="4" display="none" />
+                    <text id="peakLineText" x="5" y="0" fill="#3498db" font-size="12" font-family="sans-serif" display="none">3.3V</text>
+
+                    <path id="waveform" d="" stroke="#0f0" stroke-width="2" fill="none" stroke-linejoin="round" />
+                    
+                    <circle id="nowGlow" cx="0" cy="0" r="8" fill="#0f0" opacity="0.4" display="none" />
+                    <circle id="nowDot" cx="0" cy="0" r="4" fill="#fff" stroke="#0f0" stroke-width="2" display="none" />
+                </svg>
+            </div>
+
+            <div class="osc-dial-section">
+                <div class="osc-settings" style="display:flex; flex-direction:column; padding:0; border:none; background:transparent;">
+                    <label style="font-size:12px; margin-bottom:-5px;">縦軸感度 (VOLTS/DIV)</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" onclick="changeVolts(-1)">◀</button>
+                        <span class="dial-display" id="voltsDisplay">1 V</span>
+                        <button class="dial-btn" onclick="changeVolts(1)">▶</button>
+                    </div>
+                </div>
+                <div class="osc-settings" style="display:flex; flex-direction:column; padding:0; border:none; background:transparent;">
+                    <label style="font-size:12px; margin-bottom:-5px;">横軸掃引 (TIME/DIV)</label>
+                    <div class="dial-control">
+                        <button class="dial-btn" onclick="changeTime(-1)">◀</button>
+                        <span class="dial-display" id="timeDisplay">100 ms</span>
+                        <button class="dial-btn" onclick="changeTime(1)">▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sample-toolbar">
+        <button class="sample-btn" onclick="setSample('led')">📝 Lチカ (GP15 デジタル)</button>
+        <button class="sample-btn" onclick="setSample('temp')">📝 温度計 (ADC4 アナログ)</button>
+    </div>
+
+    <div id="console"><span style="color:#858585;">ここにメッセージが表示されます...</span></div>
+
+    <script>
+        window.onload = () => {
+            const targetSelect = document.getElementById('oscTarget');
+            let optgroupA = document.createElement('optgroup');
+            optgroupA.label = "アナログ入力 (ADC)";
+            optgroupA.innerHTML = `
+                <option value="a_0">ADC0 (GP26)</option>
+                <option value="a_1">ADC1 (GP27)</option>
+                <option value="a_2">ADC2 (GP28)</option>
+                <option value="a_4">内部温度センサー (ADC4)</option>
+            `;
+            targetSelect.appendChild(optgroupA);
+
+            let optgroupD = document.createElement('optgroup');
+            optgroupD.label = "デジタル入出力 (GP)";
+            const validGPs = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,26,27,28];
+            validGPs.forEach(pin => {
+                let opt = document.createElement('option');
+                opt.value = `d_${pin}`;
+                opt.innerText = `GP${pin}`;
+                if (pin === 15) opt.selected = true; 
+                optgroupD.appendChild(opt);
+            });
+            targetSelect.appendChild(optgroupD);
+        };
+
+        let port;
+        let isMuted = false;      
+        let outputBuffer = ""; 
+        let globalRawBuffer = "";   
+        let currentTask = ""; 
+        let currentFileName = "main.py"; 
+        let currentFiles = []; 
+        let lastSavedContent = ""; 
+        
+        let oscData = [];
+        
+        const editor = document.getElementById('editor');
+        const highlightLayer = document.getElementById('highlight-layer');
+        const lineNumbers = document.getElementById('line-numbers');
+        const consoleLog = document.getElementById('console');
+        const fileListDiv = document.getElementById('file-list');
+        const saveBtn = document.getElementById('save-btn');
+        const sleep = ms => new Promise(r => setTimeout(r, ms)); 
+
+        const voltsOptions = [ { value: 0.1, label: "0.1 V" }, { value: 0.2, label: "0.2 V" }, { value: 0.5, label: "0.5 V" }, { value: 1, label: "1 V" }, { value: 2, label: "2 V" } ];
+        const timeOptions = [ { value: 50, label: "50 ms" }, { value: 100, label: "100 ms" }, { value: 200, label: "200 ms" }, { value: 500, label: "500 ms" }, { value: 1000, label: "1 s" } ];
+        let voltsIndex = 3; 
+        let timeIndex = 1; 
+
+        function changeVolts(step) { voltsIndex = Math.max(0, Math.min(voltsOptions.length - 1, voltsIndex + step)); document.getElementById('voltsDisplay').innerText = voltsOptions[voltsIndex].label; }
+        function changeTime(step) { timeIndex = Math.max(0, Math.min(timeOptions.length - 1, timeIndex + step)); document.getElementById('timeDisplay').innerText = timeOptions[timeIndex].label; }
+
+        function renderOscilloscope() {
+            requestAnimationFrame(renderOscilloscope);
+            
+            const width = 500, height = 300, pixelsPerDiv = 50, zeroY = 250; 
+            const voltsDiv = voltsOptions[voltsIndex].value; 
+            const screenTimeMs = timeOptions[timeIndex].value * 10; 
+
+            const maxY = zeroY - (3.3 / voltsDiv) * pixelsPerDiv;
+            document.getElementById('peakLineMax').setAttribute('y1', maxY); 
+            document.getElementById('peakLineMax').setAttribute('y2', maxY);
+            document.getElementById('peakLineMax').style.display = "block";
+            
+            document.getElementById('peakLineText').setAttribute('y', maxY - 5);
+            document.getElementById('peakLineText').style.display = "block";
+            
+            if (oscData.length === 0) { 
+                document.getElementById('waveform').setAttribute('d', ""); 
+                document.getElementById('nowGlow').style.display = "none";
+                document.getElementById('nowDot').style.display = "none";
+                return; 
+            }
+            
+            let now = performance.now();
+            let pathD = "";
+            let prevX = -1;
+
+            // スイープ方式（左から右へ）の描画ロジック
+            for (let i = 0; i < oscData.length; i++) {
+                let d = oscData[i];
+                let x = ((d.t % screenTimeMs) / screenTimeMs) * width;
+                let y = zeroY - (d.v / voltsDiv) * pixelsPerDiv;
+                
+                if (i === 0 || x < prevX) {
+                    pathD += `M ${x} ${y}`;
+                } else {
+                    pathD += ` L ${x} ${y}`;
+                }
+                prevX = x;
+            }
+            
+            let lastD = oscData[oscData.length - 1];
+            let lastX = ((lastD.t % screenTimeMs) / screenTimeMs) * width;
+            let lastY = zeroY - (lastD.v / voltsDiv) * pixelsPerDiv;
+            
+            document.getElementById('nowGlow').setAttribute('cx', lastX);
+            document.getElementById('nowGlow').setAttribute('cy', lastY);
+            document.getElementById('nowGlow').style.display = "block";
+            
+            document.getElementById('nowDot').setAttribute('cx', lastX);
+            document.getElementById('nowDot').setAttribute('cy', lastY);
+            document.getElementById('nowDot').style.display = "block";
+            
+            document.getElementById('waveform').setAttribute('d', pathD);
+            
+            const cutoff = now - screenTimeMs;
+            while(oscData.length > 0 && oscData[0].t < cutoff) oscData.shift();
+        }
+        requestAnimationFrame(renderOscilloscope);
+
+        function updateHighlight() {
+            let text = editor.value;
+            text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const regex = /(#.*)|("""[\s\S]*?"""|'''[\s\S]*?'''|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")|\b(and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield|False|None|True)\b|\b(print|range|len|type|int|float|str|bool|list|dict|set|tuple|open|super|machine|Pin|PWM|ADC|Timer|time|sleep)\b|\b(\d+(?:\.\d+)?)\b|\b([a-zA-Z_]\w*)(?=\()/g;
+            text = text.replace(regex, function(m, c, s, k, b, n, f) {
+                if(c) return `<span class="syn-comment">${m}</span>`; if(s) return `<span class="syn-string">${m}</span>`;
+                if(k) return `<span class="syn-keyword">${m}</span>`; if(b) return `<span class="syn-builtin">${m}</span>`;
+                if(n) return `<span class="syn-number">${m}</span>`; if(f) return `<span class="syn-func">${m}</span>`; return m;
+            });
+            if (text.endsWith('\n')) text += ' ';
+            highlightLayer.innerHTML = text;
+            updateLineNumbers();
+        }
+
+        editor.addEventListener('scroll', () => { highlightLayer.scrollTop = editor.scrollTop; highlightLayer.scrollLeft = editor.scrollLeft; lineNumbers.scrollTop = editor.scrollTop; });
+        editor.addEventListener('input', updateHighlight);
+        editor.addEventListener('keydown', function(e) {
+            const start = this.selectionStart, end = this.selectionEnd;
+            if (e.key === 'Tab') {
+                e.preventDefault(); this.value = this.value.substring(0, start) + "    " + this.value.substring(end); this.selectionStart = this.selectionEnd = start + 4; updateHighlight();
+            } else if (e.key === 'Enter') {
+                e.preventDefault(); const textBefore = this.value.substring(0, start); const currentLine = textBefore.substring(textBefore.lastIndexOf('\n') + 1);
+                const match = currentLine.match(/^ +/); let indent = match ? match[0] : "";
+                if (currentLine.trimEnd().endsWith(':')) indent += "    ";
+                this.value = this.value.substring(0, start) + "\n" + indent + this.value.substring(end); this.selectionStart = this.selectionEnd = start + 1 + indent.length; updateHighlight();
+                this.blur(); this.focus();
+            } else if (e.key === 'Backspace') {
+                if (start === end && start > 0) {
+                    const textBefore = this.value.substring(0, start); const currentLine = textBefore.substring(textBefore.lastIndexOf('\n') + 1);
+                    if (/^ +$/.test(currentLine)) { e.preventDefault(); const rem = ((currentLine.length - 1) % 4) + 1; this.value = this.value.substring(0, start - rem) + this.value.substring(end); this.selectionStart = this.selectionEnd = start - rem; updateHighlight(); }
+                }
+            }
+        });
+
+        function toggleSaveMenu(e) { e.stopPropagation(); const m = document.getElementById('save-menu'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+        window.addEventListener('click', () => { document.getElementById('save-menu').style.display = 'none'; });
+        function updateLineNumbers() { lineNumbers.innerText = Array(editor.value.split('\n').length).fill(0).map((_, i) => i + 1).join('\n'); }
+        function log(msg, type="normal") { let c = type==="ok"?"class='console-ok'":type==="err"?"class='console-err'":""; consoleLog.innerHTML += `<span ${c}>${msg}</span>\n`; consoleLog.scrollTop = consoleLog.scrollHeight; }
+        function updateCurrentFile(f) { currentFileName = f; saveBtn.innerText = `💾 保存（${f}）`; }
+
+        function setSample(type) {
+            const codes = {
+                led: "from machine import Pin\nimport time\n\nled = Pin(15, Pin.OUT)\nprint('Lチカを開始します！')\n\nfor i in range(10):\n    led.toggle()\n    time.sleep(0.5)\n\nprint('Lチカ完了！')",
+                temp: "import machine\nimport time\n\nsensor = machine.ADC(4)\nprint('温度計測を開始します！')\n\nfor i in range(20):\n    reading = sensor.read_u16() * (3.3 / 65535)\n    temp = 27 - (reading - 0.706) / 0.001721\n    print('現在の温度: {:.2f}度'.format(temp))\n    time.sleep(0.5)\n\nprint('計測完了！')"
+            };
+            if (editor.value !== lastSavedContent && editor.value !== "") if (!confirm("⚠️ 未保存の変更があります。\n上書きしますか？")) return;
+            editor.value = codes[type]; updateHighlight(); 
+            document.getElementById('oscTarget').value = type === 'temp' ? 'a_4' : 'd_15';
+            log(`ℹ️ サンプルをセットしました。`);
+        }
+
+        navigator.serial.addEventListener('disconnect', () => { log("⚠️ Picoが切断されました。", "err"); port = null; currentFiles = []; fileListDiv.innerHTML = '<div style="color:#999; font-size:12px; padding:5px; text-align:center;">未接続</div>'; });
+
+        async function connectPico() {
+            try {
+                if (port) { log("ℹ️ すでに接続されています。"); return; }
+                port = await navigator.serial.requestPort(); await port.open({ baudRate: 115200 });
+                log("✅ Picoとの接続に成功しました！", "ok"); readResponse(); setTimeout(listFiles, 500); 
+            } catch (err) { log("❌ 接続エラー: " + err, "err"); }
+        }
+
+        // ★修正点：各命令の間に await sleep(50) を挟んでPicoに確実に裏モードに入ってもらう
+        async function listFiles() {
+            if (!port) return;
+            try {
+                isMuted = true; outputBuffer = ""; currentTask = "list";
+                const w = port.writable.getWriter();
+                await w.write(new TextEncoder().encode("\x03")); await sleep(50); // Ctrl-C
+                await w.write(new TextEncoder().encode("\x05")); await sleep(50); // Ctrl-E
+                await w.write(new TextEncoder().encode("import os\nprint('###_LS'+'_START_###')\ntry:\n    for f in os.listdir(): print(f)\nexcept Exception: pass\nprint('###_LS'+'_END_###')\n\x04"));
+                w.releaseLock();
+            } catch (err) { log("❌ 取得エラー", "err"); }
+        }
+
+        async function openCode(filename) {
+            if (!port) return;
+            try {
+                if (editor.value !== lastSavedContent && editor.value !== "") if (!confirm(`⚠️ 未保存の変更があります。破棄して開きますか？`)) return;
+                isMuted = true; outputBuffer = ""; currentTask = "open"; updateCurrentFile(filename); log(`📂 ${filename} 読込中...`);
+                const w = port.writable.getWriter();
+                await w.write(new TextEncoder().encode("\x03")); await sleep(50); // Ctrl-C
+                await w.write(new TextEncoder().encode("\x05")); await sleep(50); // Ctrl-E
+                await w.write(new TextEncoder().encode(`print('###_OP'+'_START_###')\ntry:\n    with open('${filename}', 'r') as f: print(f.read())\nexcept Exception as e: print('ERROR:', e)\nprint('###_OP'+'_END_###')\n\x04`));
+                w.releaseLock();
+            } catch (err) { log("❌ 読込エラー", "err"); }
+        }
+
+        function getInjectedCode() {
+            let killCode = `\ntry:\n    _osc_timer.deinit()\nexcept:\n    pass\n`;
+            if (!document.getElementById('oscEnable').checked) return killCode;
+            
+            const target = document.getElementById('oscTarget').value;
+            const mode = target.startsWith('a_') ? 'analog' : 'digital';
+            const pin = target.substring(2);
+
+            return killCode + `
+import machine
+_osc_p = machine.ADC(int(${pin})) if "${mode}" == "analog" else machine.Pin(int(${pin}))
+_osc_timer = machine.Timer()
+def _osc_cb(t):
+    try:
+        v = (_osc_p.read_u16() * 3.3 / 65535) if "${mode}" == "analog" else (_osc_p.value() * 3.3)
+        print("__OSC__:" + str(v))
+    except: pass
+_osc_timer.init(period=20, mode=machine.Timer.PERIODIC, callback=_osc_cb)
+`;
+        }
+
+        async function runCode() {
+            if (!port) { alert("🔌 Picoと接続してください！"); return; }
+            try {
+                oscData = []; 
+                isMuted = true; outputBuffer = ""; currentTask = "run"; log("▶️ 実行中...");
+                const encoder = new TextEncoder(); const w = port.writable.getWriter();
+                await w.write(encoder.encode("\x03")); await sleep(50); // Ctrl-C
+                await w.write(encoder.encode("\x05")); await sleep(50); // Ctrl-E
+                const code = "print('###_EX'+'_START_###')\n" + getInjectedCode() + editor.value + "\n\x04"; 
+                await w.write(encoder.encode(code)); w.releaseLock();
+            } catch (err) { log("❌ 実行エラー", "err"); }
+        }
+
+        async function saveCode() { if (!port) { alert("🔌 接続してください"); return; } executeSave(currentFileName); }
+        function saveAsCode() {
+            if (!port) { alert("🔌 接続してください"); return; }
+            let n = prompt("新しいファイル名", currentFileName); if (!n) return; if (!n.includes('.')) n += ".py";
+            if (currentFiles.includes(n) && !confirm(`上書きしますか？`)) return;
+            updateCurrentFile(n); executeSave(n);
+        }
+
+        async function executeSave(filename) {
+            try {
+                isMuted = true; outputBuffer = ""; currentTask = "save";
+                const w = port.writable.getWriter(), enc = new TextEncoder(), lines = editor.value.split('\n');
+                await w.write(enc.encode("\x03")); await sleep(50); // Ctrl-C
+                await w.write(enc.encode("\x05")); await sleep(50); // Ctrl-E
+                await w.write(enc.encode(`print('###_EX'+'_START_###')\nf = open('${filename}', 'w')\n`));
+                for (let i = 0; i < lines.length; i++) {
+                    await w.write(enc.encode(`_ = f.write('${lines[i].replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '')}\\n')\n`));
+                    await sleep(15);
+                }
+                await w.write(enc.encode(`f.close()\nprint('✅ ${filename} に保存完了！')\n\x04`));
+                w.releaseLock(); lastSavedContent = editor.value; setTimeout(listFiles, 500);
+            } catch (err) { log("❌ 保存エラー", "err"); }
+        }
+
+        async function readResponse() {
+            if (!port || !port.readable) return;
+            const decoder = new TextDecoder(), reader = port.readable.getReader();
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    globalRawBuffer += decoder.decode(value, { stream: true });
+                    
+                    let lines = globalRawBuffer.split('\n');
+                    globalRawBuffer = lines.pop(); 
+                    
+                    let normalText = "";
+                    for (let line of lines) {
+                        let cleanLine = line.replace(/\r/g, '');
+                        if (cleanLine.startsWith('__OSC__:')) {
+                            oscData.push({ t: performance.now(), v: parseFloat(cleanLine.substring(8)) });
+                        } else {
+                            normalText += line + '\n';
+                        }
+                    }
+                    
+                    if (normalText.length > 0) {
+                        let text = normalText;
+                        if (isMuted) {
+                            outputBuffer += text;
+                            if (currentTask === "list" && outputBuffer.includes('###_LS_END_###')) {
+                                let s = outputBuffer.indexOf('###_LS_START_###'), e = outputBuffer.indexOf('###_LS_END_###');
+                                currentFiles = outputBuffer.substring(s + 16, e).trim().split(/\r?\n/).filter(x=>x); 
+                                renderFileList(currentFiles); isMuted = false; currentTask = ""; outputBuffer = "";
+                            } else if (currentTask === "open" && outputBuffer.includes('###_OP_END_###')) {
+                                let s = outputBuffer.indexOf('###_OP_START_###'), e = outputBuffer.indexOf('###_OP_END_###');
+                                let content = outputBuffer.substring(s + 16, e).trim();
+                                if (content.startsWith("ERROR:")) log("❌ 失敗", "err");
+                                else { editor.value = content; lastSavedContent = content; updateHighlight(); log(`✅ 読込完了`, "ok"); }
+                                isMuted = false; currentTask = ""; outputBuffer = "";
+                            } else if ((currentTask === "run" || currentTask === "save") && outputBuffer.includes('###_EX_START_###')) {
+                                isMuted = false;
+                                consoleLog.innerHTML += `<span>${outputBuffer.substring(outputBuffer.indexOf('###_EX_START_###') + 16).replace(/^[\r\n]+/, '')}</span>`;
+                                currentTask = ""; outputBuffer = ""; consoleLog.scrollTop = consoleLog.scrollHeight;
+                            }
+                            if (isMuted && (outputBuffer.includes('Traceback') || outputBuffer.includes('SyntaxError:'))) {
+                                isMuted = false; currentTask = ""; log("❌ エラー:\n\n" + outputBuffer, "err"); outputBuffer = "";
+                            }
+                        } else {
+                            consoleLog.innerHTML += `<span>${text}</span>`; consoleLog.scrollTop = consoleLog.scrollHeight;
+                        }
+                    }
+                }
+            } catch (err) { log("🔌 切断", "err"); } finally { reader.releaseLock(); port = null; }
+        }
+        function renderFileList(files) {
+            if (files.length === 0) { fileListDiv.innerHTML = '<div style="color:#999; font-size:12px; padding:5px; text-align:center;">ファイルなし</div>'; return; }
+            fileListDiv.innerHTML = files.map(f => `<div class="file-item" onclick="openCode('${f}')">📄 ${f}</div>`).join('');
+        }
+        updateHighlight();
+    </script>
+</body>
+</html>
